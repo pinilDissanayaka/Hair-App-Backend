@@ -1,0 +1,73 @@
+name: CI/CD for Dev Deployment
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Deploy to OCI VM
+    runs-on: self-hosted
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Copy Repository to VM (SCP)
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          source: "."
+          target: "/home/${{ secrets.USERNAME }}/backend"
+
+      - name: SSH into VM and Deploy with Docker Compose + SSL
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+
+          script: |
+            set -e
+            cd /home/${{ secrets.USERNAME }}/backend
+
+            # Install Docker and Docker Compose if not already installed
+            docker --version || true
+            docker compose version || true
+
+            # Stop and remove old containers
+            docker compose down || true
+
+            # CRITICAL: Remove old postgres volume if it exists with incompatible format
+            # This is needed for Postgres 18+ migration from old volume structure
+            if docker volume inspect backend_postgres_data >/dev/null 2>&1; then
+              echo "Removing old postgres volume to fix Postgres 18+ compatibility..."
+              docker volume rm backend_postgres_data || true
+            fi
+
+            # Create .env from secrets
+            cat > .env <<EOF
+              OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+              REDIS_URL=${{ secrets.REDIS_URL }}
+              DATABASE_URL=postgresql+asyncpg://rise_user:rise_password@postgres:5432/rise_db
+              SECRET_KEY=${{ secrets.SECRET_KEY }}
+              REFRESH_SECRET_KEY=${{ secrets.REFRESH_SECRET_KEY }}
+              ALGORITHM=${{ secrets.ALGORITHM }}
+              ACCESS_TOKEN_EXPIRE_MINUTES=${{ secrets.ACCESS_TOKEN_EXPIRE_MINUTES }}
+              REFRESH_TOKEN_EXPIRE_DAYS=${{ secrets.REFRESH_TOKEN_EXPIRE_DAYS }}
+              ELEVENLABS_API_KEY=${{ secrets.ELEVENLABS_API_KEY }}
+            EOF
+
+            chmod 600 .env
+
+            # Build and start services
+            docker compose up --build -d
+
+            # Wait for services to be healthy
+            echo "Waiting for services to be ready..."
+            sleep 10
+
+            # Show all containers
+            docker ps -a
