@@ -6,6 +6,15 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
+import { SalonsModule } from './salons/salons.module';
+import { BookingsModule } from './bookings/bookings.module';
+import { ReviewsModule } from './reviews/reviews.module';
+import { AiTryonModule } from './ai-tryon/ai-tryon.module';
+import { PaymentsModule } from './payments/payments.module';
+import { SubscriptionsModule } from './subscriptions/subscriptions.module';
+import { PromotionsModule } from './promotions/promotions.module';
+import { PortfolioModule } from './portfolio/portfolio.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -16,8 +25,6 @@ import { AuthModule } from './auth/auth.module';
       ttl: 60000,
       limit: 10,
     }]),
-    UsersModule, 
-    AuthModule,
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
@@ -31,6 +38,17 @@ import { AuthModule } from './auth/auth.module';
       }),
       inject: [ConfigService],
     }),
+    UsersModule,
+    AuthModule,
+    SalonsModule,
+    BookingsModule,
+    ReviewsModule,
+    AiTryonModule,
+    PaymentsModule,
+    SubscriptionsModule,
+    PromotionsModule,
+    PortfolioModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
